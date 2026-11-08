@@ -1,0 +1,6 @@
+Card play: RL vs heuristic                 +0.030 +/- 0.006 pts/hand  (4000 duplicate deals)
+Card play: RL vs random                    +0.333 +/- 0.009 pts/hand  (4000 duplicate deals)
+Card play: heuristic vs random             +0.320 +/- 0.009 pts/hand  (4000 duplicate deals)
+Card play: RL + search (k=16) vs heuristic +0.003 +/- 0.032 pts/hand  (200 duplicate deals)
+Bidding: MC vs heuristic (both RL play)    +0.233 +/- 0.057 pts/hand  (200 duplicate deals)
+Full bot (MC+RL) vs heuristic bot          +0.225 +/- 0.057 pts/hand  (200 duplicate deals)

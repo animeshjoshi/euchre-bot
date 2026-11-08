@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.claude/
+models/v1/
+.venv/
+venv/

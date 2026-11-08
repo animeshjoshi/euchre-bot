@@ -1,0 +1,108 @@
+iter 0: labelled 100000 states with heuristic rollouts in 85s; training on 100000
+    epoch  1  val mse 0.1623  picks target-best 46.1%
+    epoch  2  val mse 0.1467  picks target-best 50.5%
+    epoch  3  val mse 0.1386  picks target-best 47.0%
+    epoch  4  val mse 0.1317  picks target-best 53.4%
+    epoch  5  val mse 0.1317  picks target-best 48.3%
+    epoch  6  val mse 0.1296  picks target-best 51.7%
+    epoch  7  val mse 0.1325  picks target-best 51.2%
+    epoch  8  val mse 0.1282  picks target-best 53.3%
+    epoch  9  val mse 0.1330  picks target-best 47.3%
+    epoch 10  val mse 0.1326  picks target-best 52.0%
+    epoch 11  val mse 0.1287  picks target-best 50.6%
+    epoch 12  val mse 0.1316  picks target-best 50.9%
+    epoch 13  val mse 0.1297  picks target-best 46.8%
+    epoch 14  val mse 0.1319  picks target-best 49.6%
+    epoch 15  val mse 0.1306  picks target-best 49.8%
+iter 0: greedy net vs heuristic +0.013 +/- 0.006 pts/hand (120s total)
+  saved -> models/euchre_q.npz
+iter 1: labelled 100000 states with network rollouts in 425s; training on 200000
+    epoch  1  val mse 0.1241  picks target-best 49.0%
+    epoch  2  val mse 0.1177  picks target-best 50.4%
+    epoch  3  val mse 0.1166  picks target-best 50.1%
+    epoch  4  val mse 0.1201  picks target-best 47.7%
+    epoch  5  val mse 0.1205  picks target-best 48.9%
+    epoch  6  val mse 0.1213  picks target-best 51.1%
+    epoch  7  val mse 0.1202  picks target-best 50.2%
+    epoch  8  val mse 0.1249  picks target-best 50.7%
+    epoch  9  val mse 0.1234  picks target-best 51.4%
+    epoch 10  val mse 0.1237  picks target-best 49.4%
+    epoch 11  val mse 0.1238  picks target-best 50.0%
+    epoch 12  val mse 0.1270  picks target-best 52.5%
+    epoch 13  val mse 0.1267  picks target-best 53.0%
+    epoch 14  val mse 0.1289  picks target-best 49.9%
+    epoch 15  val mse 0.1327  picks target-best 50.7%
+iter 1: greedy net vs heuristic +0.021 +/- 0.006 pts/hand (483s total)
+  saved -> models/euchre_q.npz
+iter 2: labelled 100000 states with network rollouts in 415s; training on 300000
+    epoch  1  val mse 0.1051  picks target-best 51.9%
+    epoch  2  val mse 0.1071  picks target-best 51.3%
+    epoch  3  val mse 0.1095  picks target-best 51.2%
+    epoch  4  val mse 0.1094  picks target-best 49.5%
+    epoch  5  val mse 0.1104  picks target-best 49.8%
+    epoch  6  val mse 0.1113  picks target-best 49.8%
+    epoch  7  val mse 0.1146  picks target-best 49.7%
+    epoch  8  val mse 0.1149  picks target-best 51.1%
+    epoch  9  val mse 0.1158  picks target-best 48.4%
+    epoch 10  val mse 0.1185  picks target-best 51.7%
+    epoch 11  val mse 0.1176  picks target-best 46.9%
+    epoch 12  val mse 0.1187  picks target-best 50.4%
+    epoch 13  val mse 0.1197  picks target-best 49.5%
+    epoch 14  val mse 0.1218  picks target-best 52.1%
+    epoch 15  val mse 0.1220  picks target-best 49.6%
+iter 2: greedy net vs heuristic +0.026 +/- 0.007 pts/hand (480s total)
+  saved -> models/euchre_q.npz
+iter 3: labelled 100000 states with network rollouts in 471s; training on 300000
+    epoch  1  val mse 0.1011  picks target-best 50.2%
+    epoch  2  val mse 0.1024  picks target-best 51.3%
+    epoch  3  val mse 0.1056  picks target-best 51.6%
+    epoch  4  val mse 0.1064  picks target-best 49.1%
+    epoch  5  val mse 0.1088  picks target-best 50.6%
+    epoch  6  val mse 0.1092  picks target-best 48.7%
+    epoch  7  val mse 0.1113  picks target-best 50.5%
+    epoch  8  val mse 0.1116  picks target-best 48.9%
+    epoch  9  val mse 0.1148  picks target-best 52.4%
+    epoch 10  val mse 0.1162  picks target-best 48.4%
+    epoch 11  val mse 0.1156  picks target-best 50.6%
+    epoch 12  val mse 0.1164  picks target-best 50.3%
+    epoch 13  val mse 0.1175  picks target-best 48.5%
+    epoch 14  val mse 0.1187  picks target-best 50.1%
+    epoch 15  val mse 0.1192  picks target-best 50.4%
+iter 3: greedy net vs heuristic +0.028 +/- 0.006 pts/hand (536s total)
+  saved -> models/euchre_q.npz
+iter 4: labelled 100000 states with network rollouts in 421s; training on 300000
+    epoch  1  val mse 0.0991  picks target-best 51.5%
+    epoch  2  val mse 0.1021  picks target-best 51.8%
+    epoch  3  val mse 0.1029  picks target-best 50.1%
+    epoch  4  val mse 0.1057  picks target-best 49.3%
+    epoch  5  val mse 0.1073  picks target-best 49.8%
+    epoch  6  val mse 0.1097  picks target-best 50.7%
+    epoch  7  val mse 0.1098  picks target-best 51.2%
+    epoch  8  val mse 0.1124  picks target-best 48.9%
+    epoch  9  val mse 0.1141  picks target-best 47.9%
+    epoch 10  val mse 0.1157  picks target-best 49.2%
+    epoch 11  val mse 0.1211  picks target-best 47.4%
+    epoch 12  val mse 0.1183  picks target-best 49.6%
+    epoch 13  val mse 0.1199  picks target-best 48.2%
+    epoch 14  val mse 0.1204  picks target-best 50.3%
+    epoch 15  val mse 0.1212  picks target-best 49.7%
+iter 4: greedy net vs heuristic +0.021 +/- 0.006 pts/hand (501s total)
+iter 5: labelled 100000 states with network rollouts in 464s; training on 300000
+    epoch  1  val mse 0.0970  picks target-best 50.1%
+    epoch  2  val mse 0.0993  picks target-best 48.5%
+    epoch  3  val mse 0.1009  picks target-best 51.3%
+    epoch  4  val mse 0.1031  picks target-best 50.3%
+    epoch  5  val mse 0.1057  picks target-best 50.6%
+    epoch  6  val mse 0.1076  picks target-best 49.8%
+    epoch  7  val mse 0.1085  picks target-best 49.6%
+    epoch  8  val mse 0.1111  picks target-best 51.8%
+    epoch  9  val mse 0.1129  picks target-best 49.8%
+    epoch 10  val mse 0.1154  picks target-best 52.4%
+    epoch 11  val mse 0.1153  picks target-best 50.6%
+    epoch 12  val mse 0.1165  picks target-best 51.1%
+    epoch 13  val mse 0.1174  picks target-best 49.0%
+    epoch 14  val mse 0.1191  picks target-best 50.7%
+    epoch 15  val mse 0.1193  picks target-best 51.2%
+iter 5: greedy net vs heuristic +0.030 +/- 0.006 pts/hand (520s total)
+  saved -> models/euchre_q.npz
+best +0.030 pts/hand vs heuristic

@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Euchre Bot</title>
+<style>
+:root {
+  --bg: #f4f1ea; --panel: #ffffff; --ink: #1d232a; --muted: #6b7280; --line: #e3ded3;
+  --felt: #2f6b4f; --felt-edge: #24553e; --felt-ink: #e9f3ec;
+  --card: #fffdf8; --card-line: #d8d2c4; --red: #c0392b; --black: #1d232a;
+  --accent: #2563eb; --accent-ink: #fff; --good: #15803d; --bad: #b91c1c; --warn: #b45309;
+  --back1: #31508c; --back2: #23396b;
+  --shadow: 0 1px 2px rgba(0,0,0,.08), 0 4px 14px rgba(0,0,0,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171b; --panel: #1d2127; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2c323a;
+    --felt: #1f4a37; --felt-edge: #173a2b; --felt-ink: #dcebe2;
+    --card: #f3efe6; --card-line: #b9b2a3; --accent: #4f8cff; --good: #4ade80; --bad: #f87171; --warn: #fbbf24;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171b; --panel: #1d2127; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2c323a;
+  --felt: #1f4a37; --felt-edge: #173a2b; --felt-ink: #dcebe2;
+  --card: #f3efe6; --card-line: #b9b2a3; --accent: #4f8cff; --good: #4ade80; --bad: #f87171; --warn: #fbbf24;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--line);
+  background: var(--panel); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
+header h1 { font-size: 17px; margin: 0; letter-spacing: .2px; }
+.tabs { display: flex; gap: 4px; }
+.tab { border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 6px 12px;
+  border-radius: 8px; cursor: pointer; font: inherit; }
+.tab.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.spacer { flex: 1; }
+.score { display: flex; gap: 10px; font-variant-numeric: tabular-nums; }
+.score b { font-size: 18px; }
+.pill { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); }
+button.btn { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+button.btn:hover { border-color: var(--muted); }
+button.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button.btn:disabled { opacity: .45; cursor: default; }
+main { max-width: 1240px; margin: 0 auto; padding: 16px; }
+.view { display: none; } .view.on { display: block; }
+
+/* ---------- play view */
+.playgrid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; }
+@media (max-width: 900px) { .playgrid { grid-template-columns: 1fr; } }
+.table { background: radial-gradient(ellipse at center, var(--felt) 55%, var(--felt-edge)); border-radius: 22px;
+  color: var(--felt-ink); padding: 14px; display: grid; min-height: 560px;
+  grid-template-columns: 120px 1fr 120px; grid-template-rows: auto 1fr auto; gap: 8px; box-shadow: var(--shadow); }
+.seat { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 90px; }
+.seat.n { grid-column: 2; grid-row: 1; } .seat.w { grid-column: 1; grid-row: 2; }
+.seat.e { grid-column: 3; grid-row: 2; } .seat.s { grid-column: 1 / 4; grid-row: 3; }
+.name { font-weight: 600; display: flex; gap: 6px; align-items: center; }
+.name .tag { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 6px; background: rgba(255,255,255,.18); }
+.name.active::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #facc15; box-shadow: 0 0 8px #facc15; }
+.bubble { background: var(--card); color: var(--black); border-radius: 10px; padding: 3px 10px; font-weight: 600; font-size: 13px; box-shadow: var(--shadow); }
+.thinking { font-size: 12px; opacity: .85; }
+.backs { display: flex; }
+.back { width: 26px; height: 38px; border-radius: 4px; margin-left: -12px; border: 1px solid rgba(255,255,255,.5);
+  background: repeating-linear-gradient(45deg, var(--back1) 0 4px, var(--back2) 4px 8px); }
+.backs.v { flex-direction: column; } .backs.v .back { margin-left: 0; margin-top: -26px; } .backs .back:first-child { margin: 0; }
+.center { grid-column: 2; grid-row: 2; position: relative; display: grid;
+  grid-template-columns: 1fr auto 1fr; grid-template-rows: 1fr auto 1fr; align-items: center; justify-items: center; min-height: 300px; }
+.slot { min-width: 64px; min-height: 92px; display: flex; align-items: center; justify-content: center; }
+.slot.n { grid-column: 2; grid-row: 1; } .slot.s { grid-column: 2; grid-row: 3; }
+.slot.w { grid-column: 1; grid-row: 2; } .slot.e { grid-column: 3; grid-row: 2; }
+.mid { grid-column: 2; grid-row: 2; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 120px; }
+.mid .lbl { font-size: 12px; opacity: .85; }
+.win .card { outline: 3px solid #facc15; }
+
+.card { width: 64px; height: 92px; background: var(--card); border: 1px solid var(--card-line); border-radius: 8px;
+  position: relative; color: var(--black); box-shadow: var(--shadow); user-select: none; flex: none; }
+.card.red { color: var(--red); }
+.card .r { position: absolute; top: 4px; left: 6px; font-weight: 700; font-size: 16px; line-height: 1; text-align: center; }
+.card .r small { display: block; font-size: 13px; }
+.card .big { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 34px; }
+.card.down { background: repeating-linear-gradient(45deg, var(--back1) 0 5px, var(--back2) 5px 10px); border-color: rgba(255,255,255,.6); }
+.card.down * { display: none; }
+.card.dim { filter: saturate(.3) brightness(.75); }
+.hand { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; padding-top: 18px; }
+.hand .wrap { position: relative; display: flex; flex-direction: column; align-items: center; }
+.hand .card.legal { cursor: pointer; transition: transform .12s; }
+.hand .card.legal:hover { transform: translateY(-8px); }
+.hand .card.illegal { opacity: .45; }
+.hand .card.best { outline: 3px solid #facc15; }
+.qv { position: absolute; top: -18px; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+  padding: 0 5px; border-radius: 5px; background: rgba(0,0,0,.35); color: #fff; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; margin-top: 12px; min-height: 40px; }
+.actions label { display: flex; gap: 6px; align-items: center; }
+.result { background: rgba(0,0,0,.25); padding: 6px 12px; border-radius: 10px; font-weight: 600; }
+
+.side { display: flex; flex-direction: column; gap: 12px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.panel h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
+.kv span:nth-child(odd) { color: var(--muted); }
+.log { max-height: 240px; overflow: auto; font-size: 13px; display: flex; flex-direction: column; gap: 2px; }
+.log div:nth-child(odd) { color: var(--ink); } .log div { color: var(--muted); }
+.switch { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.muted { color: var(--muted); }
+
+/* EV tables */
+.evt { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+.evt td, .evt th { padding: 4px 5px; border-bottom: 1px solid var(--line); text-align: left; }
+.evt td.num, .evt th.num { white-space: nowrap; }
+.side { min-width: 0; } .side .panel { overflow-x: auto; }
+.evt th { color: var(--muted); font-weight: 600; font-size: 12px; }
+.evt tr.top td { font-weight: 700; }
+.evt td.num { text-align: right; }
+.bar { position: relative; height: 10px; min-width: 44px; background: var(--line); border-radius: 5px; overflow: hidden; }
+.bar i { position: absolute; top: 0; bottom: 0; }
+.bar .zero { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); }
+.pos { background: var(--good); } .neg { background: var(--bad); }
+
+/* analyzer */
+.angrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .angrid { grid-template-columns: 1fr; } }
+.picker { display: grid; grid-template-columns: repeat(6, 64px); gap: 8px; }
+@media (max-width: 520px) { .picker { grid-template-columns: repeat(6, 48px); gap: 5px; }
+  .picker .card { width: 48px; height: 70px; } .picker .card .big { font-size: 24px; } .picker .card .r { font-size: 13px; } }
+.picker .card { cursor: pointer; }
+.picker .card.inhand { outline: 3px solid var(--accent); transform: translateY(-3px); }
+.picker .card.isup { outline: 3px solid var(--warn); transform: translateY(-3px); }
+.controls { display: grid; grid-template-columns: auto 1fr; gap: 10px 14px; align-items: center; margin-top: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; flex-wrap: wrap; }
+.seg button { font: inherit; border: 0; background: transparent; color: var(--ink); padding: 6px 12px; cursor: pointer; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--ink); color: var(--bg); }
+.sel { display: flex; gap: 6px; flex-wrap: wrap; min-height: 92px; align-items: center; }
+.err { color: var(--bad); }
+@media (max-width: 640px) {
+  main { padding: 10px; }
+  .table { grid-template-columns: 64px 1fr 64px; padding: 8px; min-height: 480px; }
+  .card { width: 50px; height: 72px; } .card .big { font-size: 26px; } .card .r { font-size: 13px; }
+  .slot { min-width: 50px; min-height: 72px; } .center { min-height: 250px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Euchre Bot</h1>
+  <div class="tabs">
+    <button class="tab on" data-v="play">Play</button>
+    <button class="tab" data-v="analyze">Bid analyzer</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="score" id="score"></div>
+  <button class="btn" id="themeBtn" title="Toggle theme">Theme</button>
+</header>
+<main>
+<section class="view on" id="v-play">
+  <div class="playgrid">
+    <div>
+      <div class="table" id="table">
+        <div class="seat n" id="seat2"></div>
+        <div class="seat w" id="seat1"></div>
+        <div class="seat e" id="seat3"></div>
+        <div class="center">
+          <div class="slot n" id="slot2"></div><div class="slot w" id="slot1"></div>
+          <div class="slot e" id="slot3"></div><div class="slot s" id="slot0"></div>
+          <div class="mid" id="mid"></div>
+        </div>
+        <div class="seat s" id="seat0"></div>
+      </div>
+    </div>
+    <div class="side">
+      <div class="panel">
+        <h3>Game</h3>
+        <div class="kv" id="info"></div>
+        <div class="actions" style="justify-content:flex-start">
+          <button class="btn" id="newBtn">New game</button>
+          <label class="switch"><input type="checkbox" id="stickChk"> Stick the dealer</label>
+        </div>
+      </div>
+      <div class="panel">
+        <h3 style="display:flex;justify-content:space-between;align-items:center">Bot advice
+          <label class="switch" style="text-transform:none;letter-spacing:0;color:var(--ink);font-size:13px"><input type="checkbox" id="hintChk" checked> show</label></h3>
+        <div id="hint" class="muted">Advice appears when it's your turn.</div>
+      </div>
+      <div class="panel"><h3>Log</h3><div class="log" id="log"></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="view" id="v-analyze">
+  <div class="angrid">
+    <div class="panel">
+      <h3>Pick cards</h3>
+      <div class="controls" style="margin-top:0;margin-bottom:12px">
+        <span>Selecting</span>
+        <div class="seg" id="pickMode"><button data-m="hand" class="on">Hand (5)</button><button data-m="up">Upcard</button></div>
+      </div>
+      <div class="picker" id="picker"></div>
+      <div class="controls">
+        <span>Your hand</span><div class="sel" id="selHand"></div>
+        <span>Upcard</span><div class="sel" id="selUp"></div>
+        <span>Dealer</span>
+        <div class="seg" id="dealerSeg"><button data-d="0">Me</button><button data-d="1">Left</button><button data-d="2">Partner</button><button data-d="3" class="on">Right</button></div>
+        <span>Round</span>
+        <div class="seg" id="roundSeg"><button data-r="1" class="on">1 - order up</button><button data-r="2">2 - upcard turned down</button></div>
+        <span>Simulations</span>
+        <div style="display:flex;gap:10px;align-items:center"><input type="range" id="sims" min="200" max="4000" step="200" value="1000"><span id="simsLbl">1000</span></div>
+        <span></span><label class="switch"><input type="checkbox" id="anStick"> Stick the dealer</label>
+        <span></span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="anBtn">Analyze</button><button class="btn" id="randBtn">Random deal</button><button class="btn" id="clrBtn">Clear</button></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Monte Carlo result</h3>
+      <div id="anOut" class="muted">Pick 5 cards and an upcard, then Analyze. Each option's expected points per hand for your team (+ you score, − opponents score) is estimated by simulating random deals of the unseen cards, keeping only deals consistent with earlier passes.</div>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+const SU = "SCHD", RK = "9TJQKA", SYM = ["♠", "♣", "♥", "♦"], SNAME = ["Spades","Clubs","Hearts","Diamonds"];
+const SEAT = ["You", "West", "Partner", "East"];
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let S = null, lastVer = -1, busy = false;
+
+// theme
+(function(){ try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch(e){} })();
+$("themeBtn").onclick = () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const nxt = cur === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = nxt; try { localStorage.setItem("theme", nxt); } catch(e){}
+};
+document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "v-" + b.dataset.v));
+});
+
+function cardHTML(c, cls = "", attrs = "") {
+  if (c === null || c === undefined) return "";
+  const s = Math.floor(c / 6), r = RK[c % 6] === "T" ? "10" : RK[c % 6];
+  const red = s >= 2 ? " red" : "";
+  return `<div class="card${red} ${cls}" ${attrs}><div class="r">${r}<small>${SYM[s]}</small></div><div class="big">${SYM[s]}</div></div>`;
+}
+const cstr = c => (RK[c % 6] === "T" ? "10" : RK[c % 6]) + SYM[Math.floor(c / 6)];
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
+}
+
+function evTable(rows, recommend = true) {
+  if (!rows || !rows.length) return "";
+  const m = Math.max(1, ...rows.map(r => Math.abs(r.ev)));
+  return `<table class="evt"><tr><th>Option</th><th class="num">EV</th><th></th><th class="num">P(win)</th></tr>` +
+    rows.map((r, i) => {
+      const w = Math.abs(r.ev) / m * 50, cls = r.ev >= 0 ? "pos" : "neg";
+      const left = r.ev >= 0 ? 50 : 50 - w;
+      return `<tr class="${i === 0 && recommend ? "top" : ""}"><td>${i === 0 && recommend ? "★ " : ""}${esc(r.label)}</td>
+        <td class="num">${r.ev >= 0 ? "+" : ""}${r.ev.toFixed(2)}<span class="muted" style="font-weight:400"> ±${r.se.toFixed(2)}</span></td>
+        <td><div class="bar"><i class="${cls}" style="left:${left}%;width:${w}%"></i><span class="zero"></span></div></td>
+        <td class="num">${r.p === null ? "" : (r.p * 100).toFixed(0) + "%"}</td></tr>`;
+    }).join("") + `</table>`;
+}
+
+// ------------------------------------------------------------ play view
+function render() {
+  if (!S || S.phase === "none") return;
+  const P = S.pending, hints = $("hintChk").checked;
+  $("score").innerHTML = `<span class="pill">You &amp; Partner <b>${S.score[0]}</b></span><span class="pill">Bots <b>${S.score[1]}</b></span>`;
+  const C = S.contract;
+  $("info").innerHTML = [
+    ["Hand", S.hand_no], ["Dealer", SEAT[S.dealer]],
+    ["Trump", C ? `<b style="color:${C.trump >= 2 ? "var(--red)" : "inherit"}">${SYM[C.trump]} ${C.trump_name}</b>` : "—"],
+    ["Maker", C ? SEAT[C.maker] + (C.alone ? " (alone)" : "") : "—"],
+    ["Tricks", `You/Partner ${S.tricks_won[0]} – ${S.tricks_won[1]} West/East`],
+    ["Card play", S.has_model ? "RL model" : "heuristic (no model yet)"], ["Game to", S.target],
+  ].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join("");
+
+  // seats
+  for (const p of [1, 2, 3]) {
+    const bid = S.bids[p], thinking = S.thinking === p;
+    const n = S.counts[p], vert = p !== 2;
+    const out = C && C.alone && (C.maker + 2) % 4 === p;
+    $("seat" + p).innerHTML = `<div class="name ${S.turn === p ? "active" : ""}">${SEAT[p]}${S.dealer === p ? '<span class="tag">Dealer</span>' : ""}</div>
+      ${out ? '<div class="thinking">sitting out</div>' : `<div class="backs ${vert ? "v" : ""}">${'<div class="back"></div>'.repeat(n)}</div>`}
+      ${bid ? `<div class="bubble">${esc(bid)}</div>` : ""}${thinking ? '<div class="thinking">thinking…</div>' : ""}`;
+  }
+  // trick slots
+  for (let p = 0; p < 4; p++) $("slot" + p).innerHTML = "";
+  for (const t of S.trick) $("slot" + t.seat).innerHTML = cardHTML(t.card);
+  for (let p = 0; p < 4; p++) $("slot" + p).classList.toggle("win", S.trick_winner === p);
+  // middle
+  let mid = "";
+  if (S.phase === "bidding" || (P && P.type === "discard")) {
+    const st = S.upcard_state;
+    mid = `<div class="lbl">${st === "up" ? "Upcard" : "Turned down"} · ${SEAT[S.dealer]} dealt</div>` +
+      cardHTML(S.upcard, st === "up" ? "" : "dim") + `<div class="lbl">Bidding round ${S.bid_round}</div>`;
+  } else if (S.phase === "play" && C) {
+    mid = `<div class="lbl">Trump</div><div style="font-size:34px;color:${C.trump >= 2 ? "#ffb4ab" : "var(--felt-ink)"}">${SYM[C.trump]}</div>`;
+    if (!S.trick.length && S.last_trick) mid += `<div class="lbl">Last trick: ${SEAT[S.last_trick.winner]}</div>`;
+  } else if (S.result) {
+    mid = `<div class="result">${esc(S.result)}</div>`;
+  }
+  $("mid").innerHTML = mid;
+
+  // my seat: hand + actions
+  const legal = P && P.type === "play" ? new Set(P.legal) : null;
+  const discard = P && P.type === "discard" ? new Set(P.cards) : null;
+  let best = null;
+  if (legal && hints && P.q && Object.keys(P.q).length > 1) best = +Object.entries(P.q).sort((a, b) => b[1] - a[1])[0][0];
+  if (discard && hints && P.best !== undefined) best = P.best;
+  const hand = S.hand.map(c => {
+    let cls = "", q = "";
+    if (legal) { cls = legal.has(c) ? "legal" : "illegal"; if (hints && legal.has(c) && P.q[c] !== undefined && P.q_is_model) q = `<div class="qv">${P.q[c] >= 0 ? "+" : ""}${P.q[c].toFixed(2)}</div>`; }
+    if (discard) cls = "legal";
+    if (best === c) cls += " best";
+    return `<div class="wrap">${q}${cardHTML(c, cls, `data-c="${c}"`)}</div>`;
+  }).join("");
+  let acts = "";
+  if (P) {
+    if (P.type === "bid1") {
+      acts = `<button class="btn" data-a='{"kind":"pass"}'>Pass</button>
+        <button class="btn" data-a='{"kind":"order"}'>${P.dealer_is_you ? "Pick up" : "Order up"} ${SYM[P.suit]}</button>
+        <button class="btn" data-a='{"kind":"order","alone":true}'>${P.dealer_is_you ? "Pick up" : "Order up"} ${SYM[P.suit]} alone</button>`;
+    } else if (P.type === "bid2") {
+      acts = (P.must_call ? "" : `<button class="btn" data-a='{"suit":null}'>Pass</button>`) +
+        P.suits.map(s => `<button class="btn" data-a='{"suit":${s}}'>${SYM[s]} ${SNAME[s]}</button>`).join("") +
+        `<label><input type="checkbox" id="aloneChk"> alone</label>`;
+    } else if (P.type === "discard") acts = `<span>Click a card to discard</span>`;
+    else if (P.type === "play") acts = `<span>${S.trick.length ? "Your play" : "Your lead"} — click a card</span>`;
+    else if (P.type === "next") acts = (S.result ? `<span class="result">${esc(S.result)}</span>` : "") + `<button class="btn primary" data-a='{}'>Next hand</button>`;
+    else if (P.type === "new_game") acts = `<span class="result">${esc(S.result)}</span><button class="btn primary" id="again">New game</button>`;
+  } else if (S.thinking === 0) acts = `<span>Simulating…</span>`;
+  $("seat0").innerHTML = `<div class="name ${S.turn === 0 ? "active" : ""}">You${S.dealer === 0 ? '<span class="tag">Dealer</span>' : ""}
+      ${S.bids[0] ? `<span class="bubble">${esc(S.bids[0])}</span>` : ""}</div>
+    <div class="hand">${hand}</div><div class="actions">${acts}</div>`;
+
+  // reveal at hand end
+  if (S.reveal && S.phase !== "play") {
+    $("seat0").innerHTML += `<div class="panel" style="margin-top:12px;color:var(--ink);width:100%;max-width:620px">
+      <h3>Hands this deal (after pick-up)</h3>${[1, 2, 3].map(p => `<div><b>${SEAT[p]}:</b> ${S.reveal[p].map(c => `<span style="color:${c >= 12 ? "var(--red)" : "inherit"}">${cstr(c)}</span>`).join(" ")}</div>`).join("")}</div>`;
+  }
+
+  // hint panel
+  let h = '<span class="muted">Advice appears when it’s your turn.</span>';
+  if (!hints) h = '<span class="muted">Hidden.</span>';
+  else if (P && (P.type === "bid1" || P.type === "bid2")) h = `<div class="muted" style="margin-bottom:6px">Monte Carlo over deals of the unseen cards (signed points for your team):</div>` + evTable(P.analysis);
+  else if (P && P.type === "discard") h = `<div class="muted" style="margin-bottom:6px">Expected points by discard:</div>` + evTable(P.analysis);
+  else if (P && P.type === "play") {
+    const rows = Object.entries(P.q).sort((a, b) => b[1] - a[1]);
+    h = P.q_is_model
+      ? `<div class="muted" style="margin-bottom:6px">RL Q-values: expected hand points if you play each card.</div><table class="evt">${rows.map(([c, q], i) => `<tr class="${i ? "" : "top"}"><td>${i ? "" : "★ "}${cstr(+c)}</td><td class="num">${q >= 0 ? "+" : ""}${q.toFixed(3)}</td></tr>`).join("")}</table>`
+      : `<div>Heuristic suggests <b>${cstr(+rows[0][0])}</b> (train a model for Q-values).</div>`;
+  }
+  $("hint").innerHTML = h;
+  $("log").innerHTML = S.log.map(l => `<div>${esc(l)}</div>`).join("");
+  $("log").scrollTop = 1e6;
+}
+
+async function act(a) {
+  if (busy) return; busy = true;
+  try { await api("/api/act", a); } catch (e) { console.warn(e); } finally { busy = false; poll(true); }
+}
+$("table").addEventListener("click", e => {
+  const P = S && S.pending; if (!P) return;
+  const b = e.target.closest("[data-a]");
+  if (b) { const a = JSON.parse(b.dataset.a); const al = $("aloneChk"); if (P.type === "bid2" && al) a.alone = al.checked; return act(a); }
+  if (e.target.closest("#again")) return newGame();
+  const c = e.target.closest(".card[data-c]");
+  if (c && (P.type === "play" || P.type === "discard") && c.classList.contains("legal")) act({card: +c.dataset.c});
+});
+$("hintChk").onchange = render;
+async function newGame() { S = await api("/api/new", {stick: $("stickChk").checked}); lastVer = -1; render(); }
+$("newBtn").onclick = newGame;
+async function poll(force) {
+  try {
+    const s = await api("/api/state");
+    if (s.phase === "none") { await newGame(); return; }
+    if (force || s.version !== lastVer) { S = s; lastVer = s.version; render(); }
+  } catch (e) { /* server restarting */ }
+}
+setInterval(poll, 250); poll();
+
+// ------------------------------------------------------------ analyzer
+const A = {hand: [], up: null, mode: "hand", dealer: 3, round: 1};
+function renderPicker() {
+  let h = "";
+  for (const s of [0, 2, 1, 3]) for (let r = 0; r < 6; r++) {
+    const c = s * 6 + r;
+    h += cardHTML(c, A.hand.includes(c) ? "inhand" : A.up === c ? "isup" : "", `data-c="${c}"`);
+  }
+  $("picker").innerHTML = h;
+  $("selHand").innerHTML = A.hand.length ? A.hand.map(c => cardHTML(c)).join("") : '<span class="muted">none</span>';
+  $("selUp").innerHTML = A.up !== null ? cardHTML(A.up, A.round === 2 ? "dim" : "") : '<span class="muted">none</span>';
+}
+$("picker").onclick = e => {
+  const el = e.target.closest(".card[data-c]"); if (!el) return; const c = +el.dataset.c;
+  if (A.mode === "hand") {
+    if (A.hand.includes(c)) A.hand = A.hand.filter(x => x !== c);
+    else if (A.hand.length < 5) { if (A.up === c) A.up = null; A.hand.push(c); if (A.hand.length === 5 && A.up === null) setMode("up"); }
+  } else { A.up = A.up === c ? null : c; A.hand = A.hand.filter(x => x !== c); }
+  renderPicker();
+};
+function setMode(m) { A.mode = m; document.querySelectorAll("#pickMode button").forEach(b => b.classList.toggle("on", b.dataset.m === m)); }
+document.querySelectorAll("#pickMode button").forEach(b => b.onclick = () => setMode(b.dataset.m));
+document.querySelectorAll("#dealerSeg button").forEach(b => b.onclick = () => { A.dealer = +b.dataset.d; document.querySelectorAll("#dealerSeg button").forEach(x => x.classList.toggle("on", x === b)); });
+document.querySelectorAll("#roundSeg button").forEach(b => b.onclick = () => { A.round = +b.dataset.r; document.querySelectorAll("#roundSeg button").forEach(x => x.classList.toggle("on", x === b)); renderPicker(); });
+$("sims").oninput = () => $("simsLbl").textContent = $("sims").value;
+$("clrBtn").onclick = () => { A.hand = []; A.up = null; setMode("hand"); renderPicker(); };
+$("randBtn").onclick = () => {
+  const d = [...Array(24).keys()].sort(() => Math.random() - .5);
+  A.hand = d.slice(0, 5); A.up = d[5]; renderPicker();
+};
+$("anBtn").onclick = async () => {
+  if (A.hand.length !== 5 || A.up === null) { $("anOut").innerHTML = '<span class="err">Pick exactly 5 hand cards and an upcard.</span>'; return; }
+  $("anBtn").disabled = true; $("anOut").innerHTML = `<span class="muted">Simulating ${$("sims").value} deals…</span>`;
+  try {
+    const r = await api("/api/analyze", {hand: A.hand, upcard: A.up, dealer: A.dealer, round: A.round, sims: +$("sims").value, stick: $("anStick").checked});
+    const pos = (0 - A.dealer - 1 + 8) % 4;
+    $("anOut").innerHTML = `<div style="margin-bottom:8px"><b>Best: ${esc(r.results[0].label)}</b>
+      <div class="muted">Round ${A.round}, you bid ${["1st", "2nd", "3rd", "4th"][pos]} · ${r.sims} deals in ${r.seconds}s · rollouts: ${r.rollout}</div></div>` + evTable(r.results);
+  } catch (e) { $("anOut").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  $("anBtn").disabled = false;
+};
+renderPicker();
+</script>
+</body>
+</html>
