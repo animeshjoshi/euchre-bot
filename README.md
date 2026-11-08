@@ -166,3 +166,7 @@ Most of the edge comes from bidding. Card play leaves less room for gains: even 
 - In the "pass" rollouts, the other players' bids, and the bot's own later bids, are modelled by the heuristic bidder.
 - The bot maximises points for the current hand and ignores the game score (for example at 9–9).
 - Defending alone is not supported.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
