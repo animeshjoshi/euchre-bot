@@ -2,7 +2,7 @@ const SU = "SCHD", RK = "9TJQKA", SYM = ["♠", "♣", "♥", "♦"], SNAME = ["
 const SEAT = ["You", "West", "Partner", "East"];
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let S = null, lastVer = -1, busy = false;
+let S = null, busy = false;
 
 // theme
 (function(){ try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch(e){} })();
@@ -23,9 +23,40 @@ function cardHTML(c, cls = "", attrs = "") {
   return `<div class="card${red} ${cls}" ${attrs}><div class="r">${r}<small>${SYM[s]}</small></div><div class="big">${SYM[s]}</div></div>`;
 }
 const cstr = c => (RK[c % 6] === "T" ? "10" : RK[c % 6]) + SYM[Math.floor(c / 6)];
-async function api(path, body) {
-  const r = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
-  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
+
+// ------------------------------------------------------------ the bot (Python in a worker)
+// The game and the bots run in worker.js, so the page only draws what the worker says.
+const worker = new Worker("worker.js");
+const calls = new Map();
+let nextCall = 1;
+const boot = {text: "Starting Python…", failed: false};
+function showBoot() { $("boot").hidden = boot.done; $("boot").className = "boot" + (boot.failed ? " err" : ""); $("bootText").textContent = boot.text; }
+worker.onmessage = ({data: m}) => {
+  if (m.type === "status") { boot.text = m.text; showBoot(); }
+  else if (m.type === "ready") { boot.done = true; showBoot(); }
+  else if (m.type === "fatal") { boot.failed = true; boot.text = "Could not start the bot: " + m.error; showBoot(); }
+  else { const c = calls.get(m.id); calls.delete(m.id); m.out.ok ? c.resolve(m.out) : c.reject(new Error(m.out.error)); }
+};
+worker.onerror = e => { boot.failed = true; boot.text = "Could not start the bot: " + (e.message || "worker failed"); showBoot(); };
+function call(op, arg) {
+  return new Promise((resolve, reject) => { const id = nextCall++; calls.set(id, {resolve, reject}); worker.postMessage({id, op, arg}); });
+}
+function fail(e) { console.warn(e); boot.done = false; boot.failed = true; boot.text = "Something went wrong: " + e.message + ". Press New game to start again."; showBoot(); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// The worker never waits for us: each step says what to draw and how long to pause before the next.
+// wait_ms === null means it's the human's turn, so we stop until they act.
+let token = 0;  // bumped by every new game so an old game's loop stops
+async function advance(out, mine) {
+  for (;;) {
+    if (mine !== token) return;  // a newer game started while we were waiting
+    S = out.state; render();
+    if (out.wait_ms === null) return;
+    if (out.wait_ms > 0) await sleep(out.wait_ms);
+    if (mine !== token) return;
+    out = await call("step");
+    if (mine !== token) return;
+  }
 }
 
 function evTable(rows, recommend = true) {
@@ -139,7 +170,13 @@ function render() {
 
 async function act(a) {
   if (busy) return; busy = true;
-  try { await api("/api/act", a); } catch (e) { console.warn(e); } finally { busy = false; poll(true); }
+  const mine = token;
+  try {
+    try { await call("act", a); }
+    catch (e) { console.warn(e); return; }  // the worker refused the answer; the question is still open
+    if (mine !== token) return;             // "New game" was pressed meanwhile: don't step the new game
+    await advance(await call("step"), mine);
+  } catch (e) { if (mine === token) fail(e); } finally { busy = false; }
 }
 $("table").addEventListener("click", e => {
   const P = S && S.pending; if (!P) return;
@@ -150,16 +187,16 @@ $("table").addEventListener("click", e => {
   if (c && (P.type === "play" || P.type === "discard") && c.classList.contains("legal")) act({card: +c.dataset.c});
 });
 $("hintChk").onchange = render;
-async function newGame() { S = await api("/api/new", {stick: $("stickChk").checked}); lastVer = -1; render(); }
-$("newBtn").onclick = newGame;
-async function poll(force) {
+async function newGame() {
+  const mine = ++token;
+  S = null; busy = false;  // ignore clicks on the old table until the new game arrives
   try {
-    const s = await api("/api/state");
-    if (s.phase === "none") { await newGame(); return; }
-    if (force || s.version !== lastVer) { S = s; lastVer = s.version; render(); }
-  } catch (e) { /* server restarting */ }
+    const out = await call("new_game", {stick: $("stickChk").checked});
+    if (mine === token) { boot.failed = false; boot.done = true; showBoot(); await advance(out, mine); }
+  } catch (e) { if (mine === token) fail(e); }
 }
-setInterval(poll, 250); poll();
+$("newBtn").onclick = newGame;
+newGame();
 
 // ------------------------------------------------------------ analyzer
 const A = {hand: [], up: null, mode: "hand", dealer: 3, round: 1};
@@ -195,7 +232,7 @@ $("anBtn").onclick = async () => {
   if (A.hand.length !== 5 || A.up === null) { $("anOut").innerHTML = '<span class="err">Pick exactly 5 hand cards and an upcard.</span>'; return; }
   $("anBtn").disabled = true; $("anOut").innerHTML = `<span class="muted">Simulating ${$("sims").value} deals…</span>`;
   try {
-    const r = await api("/api/analyze", {hand: A.hand, upcard: A.up, dealer: A.dealer, round: A.round, sims: +$("sims").value, stick: $("anStick").checked});
+    const r = (await call("analyze", {hand: A.hand, upcard: A.up, dealer: A.dealer, round: A.round, sims: +$("sims").value, stick: $("anStick").checked})).analysis;
     const pos = (0 - A.dealer - 1 + 8) % 4;
     $("anOut").innerHTML = `<div style="margin-bottom:8px"><b>Best: ${esc(r.results[0].label)}</b>
       <div class="muted">Round ${A.round}, you bid ${["1st", "2nd", "3rd", "4th"][pos]} · ${r.sims} deals in ${r.seconds}s · rollouts: ${r.rollout}</div></div>` + evTable(r.results);
