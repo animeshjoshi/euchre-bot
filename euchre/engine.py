@@ -96,33 +96,64 @@ def apply_order_up(hands, upcard, dealer, maker, alone, discard_fn):
     return hands, True, d
 
 
-def run_bidding(hands, upcard, dealer, bidders, stick_the_dealer=False,
-                start_round=1, start_idx=0):
-    """Run (the rest of) the bidding. Returns (Contract or None, hands_after_pickup)."""
+def iter_bidding(hands, upcard, dealer, stick_the_dealer=False, start_round=1, start_idx=0):
+    """Bidding as a generator, so a caller can pause wherever a decision is needed.
+
+    It yields one request at a time and expects the answer to be sent back:
+        ("bid1", view)                                  -> (order_up, alone)
+        ("bid2", view)                                  -> (suit or None, alone)
+        ("discard", view, hand6, trump, maker, alone)   -> card to discard
+    When bidding ends, the generator returns (Contract or None, hands_after_pickup).
+    """
     order = [(dealer + 1 + i) % 4 for i in range(4)]
     up_suit = suit_of(upcard)
     if start_round == 1:
         for i in range(start_idx, 4):
             p = order[i]
             v = BidView(p, hands[p], upcard, dealer, 1, i)
-            go, alone = bidders[p].bid_round1(v)
+            go, alone = yield ("bid1", v)
             if go:
                 dv = BidView(dealer, hands[dealer], upcard, dealer, 1, order.index(dealer))
-                new_hands, taken, d = apply_order_up(
-                    hands, upcard, dealer, p, alone,
-                    lambda h6: bidders[dealer].discard(dv, h6, up_suit, p, alone))
-                return Contract(up_suit, p, alone, 1, taken, d), new_hands
+                out = (p + 2) % 4 if alone else -1
+                if dealer == out:
+                    return Contract(up_suit, p, alone, 1, False, None), [list(h) for h in hands]
+                hand6 = list(hands[dealer]) + [upcard]
+                d = yield ("discard", dv, hand6, up_suit, p, alone)
+                hand6.remove(d)
+                new_hands = [list(h) for h in hands]
+                new_hands[dealer] = hand6
+                return Contract(up_suit, p, alone, 1, True, d), new_hands
         start_idx = 0
     for i in range(start_idx, 4):
         p = order[i]
         must = stick_the_dealer and p == dealer
         v = BidView(p, hands[p], upcard, dealer, 2, i, must)
-        suit, alone = bidders[p].bid_round2(v)
+        suit, alone = yield ("bid2", v)
         if suit is not None:
             if suit == up_suit:
                 raise ValueError("cannot name the turned-down suit")
             return Contract(suit, p, alone, 2, False), [list(h) for h in hands]
     return None, hands
+
+
+def run_bidding(hands, upcard, dealer, bidders, stick_the_dealer=False,
+                start_round=1, start_idx=0):
+    """Run (the rest of) the bidding with one agent per seat. Returns (Contract or None, hands_after_pickup)."""
+    gen = iter_bidding(hands, upcard, dealer, stick_the_dealer, start_round, start_idx)
+    try:
+        req = next(gen)
+        while True:
+            kind, view = req[0], req[1]
+            agent = bidders[view.player]
+            if kind == "bid1":
+                answer = agent.bid_round1(view)
+            elif kind == "bid2":
+                answer = agent.bid_round2(view)
+            else:
+                answer = agent.discard(view, *req[2:])
+            req = gen.send(answer)
+    except StopIteration as done:
+        return done.value
 
 
 # ------------------------------------------------------------------ play --
