@@ -9,6 +9,10 @@ It comes with a web UI where you can play against the bot or have it analyse a b
 
 Rules used: 24-card deck, two bidding rounds, dealer picks up and discards, going alone, and standard scoring (makers score 1 / 2 / 4, a euchre scores 2). Defending alone is not supported. Stick-the-dealer is optional.
 
+## Play it online
+
+The bot runs in your browser, so the site is a static page on GitHub Pages: no server, and each visitor has their own game. The first visit downloads roughly 10 MB (Python and numpy for the browser) and later visits use the cache. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it works.
+
 ## Setup
 
 You need Python 3.10 or newer.
@@ -26,8 +30,11 @@ The trained model (`models/euchre_q.npz`) is included, so you don't need to trai
 
 ### 1. Play in the browser
 
+To run the site on your own machine (it needs internet for the Python-in-browser runtime):
+
 ```bash
-python server.py
+python scripts/build_site.py
+python -m http.server -d dist 8000
 ```
 
 Open **http://localhost:8000**.
@@ -84,7 +91,17 @@ python train_rollout.py --iters 6 --states 100000 --k 16 --out models/euchre_q.n
 
 This takes about 45 minutes on a 14-core CPU. The network is evaluated against the heuristic after every iteration, and the best version is saved.
 
-### 6. Use it from code
+### 6. Publish your own copy
+
+In your GitHub repo, open **Settings → Pages → Build and deployment** and set **Source** to **GitHub Actions**. After that, every push to `main` runs the tests, builds the site and publishes it at `https://<your-username>.github.io/<repo-name>/`.
+
+### 7. Run the tests
+
+```bash
+python -m unittest discover -s tests
+```
+
+### 8. Use it from code
 
 ```python
 from euchre.engine import Bot, BidView
@@ -116,7 +133,10 @@ for r in bot.bidder.analyze(v):
 | `euchre/evaluate.py` | Duplicate-match evaluation |
 | `train_rollout.py` | RL trainer used for the shipped model (rollout policy iteration) |
 | `train.py` | Simpler self-play Monte Carlo Q-learning trainer (kept for comparison) |
-| `server.py`, `web/index.html` | Web UI (Python standard library only) |
+| `euchre/webgame.py`, `euchre/webbridge.py` | The game as a step-by-step state machine, and the JSON functions the page calls |
+| `web/` | The web page, and the worker that runs the bot in the browser with Pyodide |
+| `scripts/build_site.py` | Builds the static site into `dist/` |
+| `tests/` | Unit tests, and a smoke test that runs the built site in Pyodide |
 | `demo.py`, `benchmark.py` | Command-line tools |
 
 ## How the bidding works
