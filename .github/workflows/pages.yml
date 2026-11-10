@@ -1,0 +1,63 @@
+name: Test and deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time, and a newer push waits for the running one instead of cancelling it half-way.
+# Pull requests get their own group so they can never push a queued deploy off the line.
+concurrency:
+  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'deploy' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Python tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Build the site
+        run: python scripts/build_site.py
+
+      # Runs the built site's code inside real Pyodide, the way the browser does.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Pyodide smoke test
+        run: |
+          version=$(sed -n 's#.*pyodide/v\([0-9.]*\)/full.*#\1#p' web/worker.js | head -1)
+          npm install --no-save "pyodide@$version"
+          node tests/pyodide_smoke.mjs dist
+
+      - uses: actions/upload-pages-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          path: dist
+
+  deploy:
+    # Pull requests are tested and built above but never published.
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
