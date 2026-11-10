@@ -87,6 +87,42 @@ class WebGameTest(unittest.TestCase):
         self.assertIsNone(game.submit({"card": p["legal"][0]}))
         self.assertEqual(game.submit({"card": p["legal"][0]}), "no decision pending")  # only one answer per question
 
+    def run_until(self, game, kind, seed=6):
+        """Step the game (bidding pass, other prompts answered) until the human faces a `kind` prompt."""
+        rng = random.Random(seed)
+        for _ in range(5000):
+            p = game.step()["state"]["pending"]
+            if p and p["type"] == kind:
+                return p
+            if p:
+                game.submit({"kind": "pass"} if p["type"] == "bid1" else human_answer(p, rng))
+        self.fail(f"never reached a {kind} prompt")
+
+    def test_malformed_answers_are_refused_and_the_question_stays_open(self):
+        game = self.new_game()
+        self.run_until(game, "bid1")
+        for bad in (None, 5, "pass", [], {}, {"kind": "maybe"}):
+            self.assertIsNotNone(game.submit(bad), bad)
+        self.assertIsNone(game.step()["wait_ms"])  # still waiting for the human
+        self.assertIsNone(game.submit({"kind": "pass"}))
+
+    def test_bid2_rejects_the_turned_down_suit(self):
+        game = self.new_game()
+        for bot in game.bots.values():
+            bot.bid_round1 = lambda view: (False, False)  # everyone passes round 1, so round 2 happens
+        p = self.run_until(game, "bid2")
+        up = game.v["upcard"] // 6
+        self.assertNotIn(up, p["suits"])
+        self.assertEqual(game.submit({"suit": up}), "not a legal suit")
+        self.assertIsNone(game.submit({"suit": p["suits"][0]}))
+
+    def test_a_crash_inside_the_game_is_raised_not_hidden(self):
+        game = self.new_game()
+        game._steps = iter(lambda: 1 / 0, None)
+        with self.assertRaises(ZeroDivisionError):
+            game.step()
+        self.assertEqual(game.step()["wait_ms"], None)  # and the dead game stays dead
+
     def test_stick_the_dealer_never_redeals_in_round_two(self):
         game = self.new_game(stick=True)
         _, final = play_game(game, random.Random(4))

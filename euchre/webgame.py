@@ -99,6 +99,9 @@ class Game:
                 wait = next(self._steps)
             except StopIteration:
                 self._finished = True
+            except Exception:
+                self._finished = True  # a crashed game can't resume; say so instead of looking finished
+                raise
         return {"state": self.v, "wait_ms": wait}
 
     def submit(self, ans):
@@ -106,10 +109,16 @@ class Game:
         p = self.v["pending"]
         if not p or self._answered:
             return "no decision pending"
+        if not isinstance(ans, dict):
+            return "answer must be an object"
         if p["type"] == "play" and ans.get("card") not in p["legal"]:
             return "illegal card"
         if p["type"] == "discard" and ans.get("card") not in p["cards"]:
             return "not in hand"
+        if p["type"] == "bid1" and ans.get("kind") not in ("order", "pass"):
+            return "choose order or pass"
+        if p["type"] == "bid2" and ans.get("suit") is not None and ans.get("suit") not in p["suits"]:
+            return "not a legal suit"
         self._answer, self._answered = ans, True
         return None
 
